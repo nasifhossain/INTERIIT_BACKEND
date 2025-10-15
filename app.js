@@ -8,6 +8,7 @@ require("dotenv").config();
 // Import routes
 const userRoutes = require('./routes/user.routes');
 const postRoutes = require('./routes/post.routes');
+const commentRoutes = require('./routes/comments.routes');
 
 // Import middleware
 const { globalErrorHandler, requestLogger, errorLogger } = require('./middleware');
@@ -56,6 +57,7 @@ mongoose.connection.on("connected",()=>{
 // API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/comments', commentRoutes);
 
 // Health check route
 app.get('/', (req, res) => {
