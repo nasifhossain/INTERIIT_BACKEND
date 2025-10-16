@@ -62,7 +62,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
             sortOrder,
             search,
             userId,
-            excludeUserId: req.user ? req.user.id : null // Exclude authenticated user's posts
+            excludeUserId: req.user ? null: null // Exclude authenticated user's posts
         };
 
         const result = await postServices.getAllPosts(options);

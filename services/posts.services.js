@@ -3,7 +3,7 @@ const Post = require('../models/posts.model');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const { getCurrentTime } = require('../utils/CurrentTime');
-const { getCommentsByPostId } = require('./comments.services');
+const { getCommentsByPostId, getCommentsCountByPostId } = require('./comments.services');
 
 /**
  * Create a new post
@@ -283,8 +283,8 @@ const getAllPosts = async (options = {}) => {
         //get comment count 
         for (let post of posts) {
             try {
-                const commentsResult = await getCommentsByPostId(post._id);
-                post.comment_count = commentsResult?.post ? commentsResult.post.comment_count : 0;
+                const comment_count = await getCommentsCountByPostId(post._id);
+                post.comment_count = comment_count || 0;
             } catch (error) {
                 // If there's an error getting comments, default to 0
                 post.comment_count = 0;

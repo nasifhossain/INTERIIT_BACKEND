@@ -341,6 +341,33 @@ const getCommentsByPostId = async (postId, options = {}) => {
 };
 
 /**
+ * @param {string} postId
+ */
+
+const getCommentsCountByPostId = async (postId) => {
+    try {
+        // Validate post ID
+        if (!mongoose.Types.ObjectId.isValid(postId)) {
+            throw new AppError('Invalid post ID format', 400);
+        }
+
+        // Get comments count
+        const count = await Comment.countDocuments({ post: postId });
+        return count;
+    } catch (error) {
+        logger.error('Error retrieving comments count', error, { postId });
+
+        // Re-throw AppError instances
+        if (error instanceof AppError) {
+            throw error;
+        }
+
+        // Handle other errors
+        throw new AppError('Error retrieving comments count', 500);
+    }
+};
+
+/**
  * Get a specific comment by ID
  * @param {String} commentId - ID of the comment to retrieve
  * @returns {Object} Comment object with user and post details
@@ -1100,5 +1127,6 @@ module.exports = {
     getCommentsByUserId,
     getCommentStats,
     getRepliesByCommentId,
-    getCommentThread
+    getCommentThread,
+    getCommentsCountByPostId 
 };
