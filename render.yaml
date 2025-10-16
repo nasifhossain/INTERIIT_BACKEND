@@ -2,14 +2,15 @@ services:
   - type: web
     name: interiit-backend
     env: node
-    plan: starter # or starter-plus, standard, pro
+    plan: free
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: JWT_SECRET
-        generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
-    healthCheckPath: /
+    # These need to be added manually in Render dashboard:
+    # MONGODB_URI: your MongoDB Atlas connection string
+    # JWT_SECRET: minimum 32 character secret key

@@ -61,7 +61,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/upvotes', upvoteRoutes);
 
-// Health check route
+// Health check routes
 app.get('/', (req, res) => {
     logger.info('Health check accessed');
     res.status(200).json({ 
@@ -69,6 +69,19 @@ app.get('/', (req, res) => {
         message: "API is running successfully",
         timestamp: getCurrentTime(),
         version: "1.0.0"
+    });
+});
+
+app.get('/health', (req, res) => {
+    logger.info('Health check accessed');
+    res.status(200).json({ 
+        status: 'OK',
+        service: 'InterIIT Backend API',
+        timestamp: getCurrentTime(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: "1.0.0",
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     });
 });
 
