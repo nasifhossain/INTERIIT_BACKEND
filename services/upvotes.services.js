@@ -78,7 +78,7 @@ const voteComment = async (commentId, userId, voteType) => {
             commentId,
             { $inc: { upvotes: voteDifference } },
             { new: true }
-        ).populate('user', 'username email avatar user_type')
+        ).populate('user', 'username name email avatar user_type')
          .populate('post', 'title user_id');
 
         logger.info('Comment vote processed', {
@@ -272,7 +272,7 @@ const getUserVotes = async (userId, options = {}) => {
                     path: 'comment',
                     populate: {
                         path: 'user',
-                        select: 'username avatar'
+                        select: 'username name avatar'
                     }
                 })
                 .sort(sort)
@@ -293,6 +293,7 @@ const getUserVotes = async (userId, options = {}) => {
             user: {
                 id: user._id,
                 username: user.username,
+                name: user.name,
                 email: user.email,
                 avatar: user.avatar
             },
@@ -380,7 +381,7 @@ const getVotesUsers = async (commentId, type) => {
             comment: commentId, 
             type: type 
         })
-            .populate('user', 'username email avatar user_type')
+            .populate('user', 'username name email avatar user_type')
             .sort({ created_at: -1 }) // Most recent votes first
             .lean();
 

@@ -34,6 +34,7 @@ const authenticateToken = async (req, res, next) => {
         req.user = {
             id: user._id,
             username: user.username,
+            name: user.name,
             email: user.email,
             user_type: user.user_type,
             avatar: user.avatar
@@ -75,6 +76,7 @@ const optionalAuth = async (req, res, next) => {
                     req.user = {
                         id: user._id,
                         username: user.username,
+                        name: user.name,
                         email: user.email,
                         user_type: user.user_type,
                         avatar: user.avatar

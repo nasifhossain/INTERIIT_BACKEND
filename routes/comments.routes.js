@@ -561,7 +561,7 @@ router.get('/search', async (req, res, next) => {
 
         const [comments, total] = await Promise.all([
             Comment.find(query)
-                .populate('user', 'username email avatar user_type')
+                .populate('user', 'username name email avatar user_type')
                 .populate('post', 'title user_id')
                 .sort(sortObj)
                 .skip(skip)

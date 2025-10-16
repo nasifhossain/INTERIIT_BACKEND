@@ -129,7 +129,7 @@ const createComment = async (commentData, userId) => {
 
         // Populate user and post information and return
         const populatedComment = await Comment.findById(savedComment._id)
-            .populate('user', 'username email avatar user_type')
+            .populate('user', 'username name email avatar user_type')
             .populate('post', 'title user_id')
             .exec();
 
@@ -199,7 +199,7 @@ const getCommentsByPostId = async (postId, options = {}) => {
         if (nested && includeReplies) {
             // Get all comments for the post (no pagination for nested view)
             const allComments = await Comment.find({ post: postId })
-                .populate('user', 'username email avatar user_type')
+                .populate('user', 'username name email avatar user_type')
                 .sort(sort)
                 .lean();
             for (const comment of allComments) {
@@ -245,7 +245,7 @@ const getCommentsByPostId = async (postId, options = {}) => {
                 post: postId, 
                 parent_comment: null 
             })
-                .populate('user', 'username email avatar user_type')
+                .populate('user', 'username name email avatar user_type')
                 .sort(sort)
                 .skip(skip)
                 .limit(parseInt(limit))
@@ -266,7 +266,7 @@ const getCommentsByPostId = async (postId, options = {}) => {
             const replies = await Comment.find({
                 parent_comment: { $in: commentIds }
             })
-                .populate('user', 'username email avatar user_type')
+                .populate('user', 'username name email avatar user_type')
                 .sort({ commented_at: 1 }) // Replies sorted by oldest first
                 .lean();
 
@@ -381,7 +381,7 @@ const getCommentById = async (commentId) => {
 
         // Find and populate comment
         const comment = await Comment.findById(commentId)
-            .populate('user', 'username email avatar user_type joined')
+            .populate('user', 'username name email avatar user_type joined')
             .populate('post', 'title user_id createdAt')
             .populate('parent_comment', 'content user commented_at')
             .exec();
@@ -393,7 +393,7 @@ const getCommentById = async (commentId) => {
         // Get replies if this comment has any
         let replies = [];
         replies = await Comment.find({ parent_comment: commentId })
-            .populate('user', 'username email avatar user_type')
+            .populate('user', 'username name email avatar user_type')
             .sort({ commented_at: 1 })
             .lean();
 
@@ -483,7 +483,7 @@ const updateComment = async (commentId, updateData, userId) => {
             commentId,
             { content: content.trim() },
             { new: true, runValidators: true }
-        ).populate('user', 'username email avatar user_type')
+        ).populate('user', 'username name email avatar user_type')
          .populate('post', 'title user_id');
 
         if (!updatedComment) {
@@ -698,7 +698,7 @@ const upvoteComment = async (commentId, userId) => {
             commentId,
             { $inc: { upvotes: voteDifference } },
             { new: true }
-        ).populate('user', 'username email avatar user_type')
+        ).populate('user', 'username name email avatar user_type')
          .populate('post', 'title user_id');
 
         if (!updatedComment) {
@@ -787,6 +787,7 @@ const getCommentsByUserId = async (userId, options = {}) => {
             user: {
                 id: user._id,
                 username: user.username,
+                name: user.name,
                 email: user.email,
                 avatar: user.avatar,
                 user_type: user.user_type,
@@ -946,7 +947,7 @@ const getRepliesByCommentId = async (commentId, options = {}) => {
         if (nested) {
             // Get all descendants (replies and their replies recursively)
             const allReplies = await Comment.find({ parent_comment: commentId })
-                .populate('user', 'username email avatar user_type')
+                .populate('user', 'username name email avatar user_type')
                 .sort(sort)
                 .lean();
 
@@ -979,7 +980,7 @@ const getRepliesByCommentId = async (commentId, options = {}) => {
         // Original flat structure
         const [replies, total] = await Promise.all([
             Comment.find({ parent_comment: commentId })
-                .populate('user', 'username email avatar user_type')
+                .populate('user', 'username name email avatar user_type')
                 .sort(sort)
                 .skip(skip)
                 .limit(parseInt(limit))
@@ -1037,7 +1038,7 @@ const getCommentThread = async (commentId) => {
 
         // Get the target comment
         const targetComment = await Comment.findById(commentId)
-            .populate('user', 'username email avatar user_type')
+            .populate('user', 'username name email avatar user_type')
             .populate('post', 'title user_id');
 
         if (!targetComment) {
@@ -1051,7 +1052,7 @@ const getCommentThread = async (commentId) => {
             
             while (current.parent_comment) {
                 const parent = await Comment.findById(current.parent_comment)
-                    .populate('user', 'username email avatar user_type');
+                    .populate('user', 'username name email avatar user_type');
                 if (parent) {
                     ancestors.unshift(parent); // Add to beginning
                     current = parent;
@@ -1065,7 +1066,7 @@ const getCommentThread = async (commentId) => {
 
         // Get all descendants (full nested tree)
         const getAllComments = await Comment.find({ post: targetComment.post })
-            .populate('user', 'username email avatar user_type')
+            .populate('user', 'username name email avatar user_type')
             .sort({ commented_at: 1 })
             .lean();
 

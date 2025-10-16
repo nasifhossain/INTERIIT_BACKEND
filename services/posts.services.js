@@ -51,7 +51,7 @@ const createPost = async (postData, userId) => {
 
         // Populate user information and return
         const populatedPost = await Post.findById(savedPost._id)
-            .populate('user_id', 'username email avatar user_type')
+            .populate('user_id', 'username name email avatar user_type')
             .exec();
 
         return populatedPost;
@@ -153,7 +153,7 @@ const editPost = async (postId, updateData, userId) => {
             postId,
             updateFields,
             { new: true, runValidators: true }
-        ).populate('user_id', 'username email avatar user_type');
+        ).populate('user_id', 'username name email avatar user_type');
 
         if (!updatedPost) {
             throw new AppError('Failed to update post', 500);
@@ -191,7 +191,7 @@ const getPostById = async (postId) => {
 
         // Find and populate post
         const post = await Post.findById(postId)
-            .populate('user_id', 'username email avatar user_type joined')
+            .populate('user_id', 'username name email avatar user_type joined')
             .exec();
 
         if (!post) {
@@ -274,7 +274,7 @@ const getAllPosts = async (options = {}) => {
 
         const [posts, total] = await Promise.all([
             Post.find(query)
-                .populate('user_id', 'username email avatar user_type joined')
+                .populate('user_id', 'username name email avatar user_type joined')
                 .sort(sort)
                 .skip(skip)
                 .limit(parseInt(limit)).lean(),
@@ -363,7 +363,7 @@ const getPostsByUserId = async (userId, options = {}) => {
 
         const [posts, total] = await Promise.all([
             Post.find(query)
-                .populate('user_id', 'username email avatar user_type joined')
+                .populate('user_id', 'username name email avatar user_type joined')
                 .sort(sort)
                 .skip(skip)
                 .limit(parseInt(limit)),
@@ -375,6 +375,7 @@ const getPostsByUserId = async (userId, options = {}) => {
             user: {
                 id: user._id,
                 username: user.username,
+                name: user.name,
                 email: user.email,
                 avatar: user.avatar,
                 user_type: user.user_type,

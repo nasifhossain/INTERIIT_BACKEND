@@ -275,6 +275,7 @@ router.get('/user/:userId/votes', async (req, res) => {
             user: {
                 id: result.user.id,
                 username: result.user.username,
+                name: result.user.name,
                 avatar: result.user.avatar
                 // Don't expose email for public endpoint
             }

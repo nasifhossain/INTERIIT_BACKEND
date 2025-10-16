@@ -153,6 +153,7 @@ router.post('/',
                 username: req.body.username,
                 email: req.body.email,
                 password: req.body.password,
+                name: req.body.name, // Optional, will default to username if not provided
                 avatar: req.body.avatar,
                 user_type: 0
             };
@@ -181,6 +182,7 @@ router.post('/admin', authenticateToken, requireAdmin, validateRequiredFields(['
             username: req.body.username,
             email: req.body.email,
             password: req.body.password,
+            name: req.body.name, // Optional, will default to username if not provided
             avatar: req.body.avatar,
             user_type: 1
         };
@@ -213,6 +215,7 @@ router.put('/:id',
             const updateData = {
                 username: req.body.username,
                 email: req.body.email,
+                name: req.body.name,
                 avatar: req.body.avatar,
                 user_type: req.body.user_type,
                 password: req.body.password // For verification only
@@ -423,6 +426,7 @@ router.post('/login',
                     user: {
                         id: user._id,
                         username: user.username,
+                        name: user.name,
                         email: user.email,
                         avatar: user.avatar,
                         user_type: user.user_type,

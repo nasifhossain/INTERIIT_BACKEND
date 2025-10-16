@@ -4,6 +4,12 @@ const { getCurrentTime } = require('../utils/CurrentTime');
 
 const userSchema = new mongoose.Schema({
     _id: mongoose.Schema.Types.ObjectId,
+    name: { 
+        type: String, 
+        default: function() { 
+            return this.username; 
+        } 
+    },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     avatar: { type: String },

@@ -156,7 +156,7 @@ const getAllUsers = async (options = {}) => {
  */
 const createUser = async (userData) => {
     try {
-        const { username, email, password, avatar, user_type = 0 } = userData;
+        const { username, email, password, avatar, name, user_type = 0 } = userData;
 
         // Validate required fields
         if (!username || !email || !password) {
@@ -191,6 +191,7 @@ const createUser = async (userData) => {
             _id: new mongoose.Types.ObjectId(),
             username,
             email,
+            name,
             password: hashedPassword,
             avatar,
             user_type
