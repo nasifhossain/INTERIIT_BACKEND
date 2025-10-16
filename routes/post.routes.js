@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const postServices = require('../services/posts.services');
-const { authenticateToken, requireOwnershipOrAdmin } = require('../middleware/auth');
+const { authenticateToken, requireOwnershipOrAdmin, optionalAuth } = require('../middleware/auth');
 const AppError = require('../utils/appError');
 
 /**
@@ -41,10 +41,10 @@ router.post('/', authenticateToken, async (req, res, next) => {
 
 /**
  * @route   GET /api/posts
- * @desc    Get all posts with pagination and filtering
- * @access  Public
+ * @desc    Get all posts with pagination and filtering (excludes authenticated user's posts)
+ * @access  Public (optionally authenticated)
  */
-router.get('/', async (req, res, next) => {
+router.get('/', optionalAuth, async (req, res, next) => {
     try {
         const {
             page = 1,
@@ -61,7 +61,8 @@ router.get('/', async (req, res, next) => {
             sortBy,
             sortOrder,
             search,
-            userId
+            userId,
+            excludeUserId: req.user ? req.user.id : null // Exclude authenticated user's posts
         };
 
         const result = await postServices.getAllPosts(options);

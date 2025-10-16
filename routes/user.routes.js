@@ -208,7 +208,6 @@ router.post('/admin', authenticateToken, requireAdmin, validateRequiredFields(['
 router.put('/:id', 
     authenticateToken, 
     requireOwnershipOrAdmin('id'),
-    validateRequiredFields(['password']), // Password required for verification
     async (req, res, next) => {
         try {
             const updateData = {
@@ -246,18 +245,18 @@ router.put('/:id',
  */
 router.put('/:id/password', 
     authenticateToken,
-    validateRequiredFields(['currentPassword', 'newPassword']),
+    validateRequiredFields(['current_password', 'new_password']),
     async (req, res, next) => {
         try {
             // Only user can change their own password
-            if (req.user.id !== req.params.id) {
+            if (req.user.id.toString() !== req.params.id.toString()) {
                 throw new AppError('You can only change your own password', 403);
             }
 
             const result = await changePassword(
                 req.params.id,
-                req.body.currentPassword,
-                req.body.newPassword
+                req.body.current_password,
+                req.body.new_password
             );
 
             res.status(200).json({

@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const Comment = require('../models/comments.model');
 const Post = require('../models/posts.model');
 const User = require('../models/user.model');
+const Upvote = require('../models/upvotes.model');
 const AppError = require('../utils/appError');
 const logger = require('../utils/logger');
 const { getCurrentTime } = require('../utils/CurrentTime');
+const { getCommentVoteStats } = require('./upvotes.services');
 
 /**
  * Helper function to calculate the depth of a comment in the nesting hierarchy
@@ -200,7 +202,9 @@ const getCommentsByPostId = async (postId, options = {}) => {
                 .populate('user', 'username email avatar user_type')
                 .sort(sort)
                 .lean();
-
+                for (const comment of allComments) {
+                    comment.stats = await getCommentVoteStats(comment._id);
+                }
             // Build nested tree structure
             const nestedComments = buildCommentTree(allComments);
             
@@ -542,9 +546,16 @@ const deleteComment = async (commentId, userId) => {
         // Delete all descendants first (replies, sub-replies, etc.)
         if (totalDescendants > 0) {
             const descendantIds = descendants.map(d => d._id);
+            
+            // Delete upvotes for all descendant comments
+            await Upvote.deleteMany({ comment: { $in: descendantIds } });
+            
             await Comment.deleteMany({ _id: { $in: descendantIds } });
             logger.info(`Deleted ${totalDescendants} nested replies for comment ${commentId}`);
         }
+
+        // Delete upvotes for the main comment
+        await Upvote.deleteMany({ comment: commentId });
 
         // Delete the comment
         const deletedComment = await Comment.findByIdAndDelete(commentId);
@@ -586,13 +597,18 @@ const deleteComment = async (commentId, userId) => {
 };
 
 /**
- * Upvote a comment
+ * Upvote a comment (deprecated - use upvotes.services.js for full voting functionality)
  * @param {String} commentId - ID of the comment to upvote
  * @param {String} userId - ID of the user upvoting
  * @returns {Object} Updated comment object
+ * @deprecated Use upvotes.services.js voteComment() function instead
  */
 const upvoteComment = async (commentId, userId) => {
     try {
+        // This is a simplified version for backward compatibility
+        // For full voting functionality including downvotes and vote toggling,
+        // use the upvotes.services.js module
+        
         // Validate comment ID
         if (!mongoose.Types.ObjectId.isValid(commentId)) {
             throw new AppError('Invalid comment ID format', 400);
@@ -615,10 +631,42 @@ const upvoteComment = async (commentId, userId) => {
             throw new AppError('User not found', 404);
         }
 
+        // Check if user has already upvoted this comment
+        const existingUpvote = await Upvote.findOne({
+            user: userId,
+            comment: commentId,
+            type: 1
+        });
+
+        if (existingUpvote) {
+            throw new AppError('You have already upvoted this comment', 409);
+        }
+
+        // Check if user has downvoted and remove it
+        const existingDownvote = await Upvote.findOne({
+            user: userId,
+            comment: commentId,
+            type: -1
+        });
+
+        let voteDifference = 1;
+        if (existingDownvote) {
+            await Upvote.findByIdAndDelete(existingDownvote._id);
+            voteDifference = 2; // Removing downvote and adding upvote
+        }
+
+        // Create new upvote
+        const newUpvote = new Upvote({
+            user: userId,
+            comment: commentId,
+            type: 1
+        });
+        await newUpvote.save();
+
         // Increment upvotes
         const updatedComment = await Comment.findByIdAndUpdate(
             commentId,
-            { $inc: { upvotes: 1 } },
+            { $inc: { upvotes: voteDifference } },
             { new: true }
         ).populate('user', 'username email avatar user_type')
          .populate('post', 'title user_id');
@@ -630,7 +678,8 @@ const upvoteComment = async (commentId, userId) => {
         logger.info('Comment upvoted successfully', {
             commentId,
             userId,
-            newUpvoteCount: updatedComment.upvotes
+            newUpvoteCount: updatedComment.upvotes,
+            removedDownvote: !!existingDownvote
         });
 
         return updatedComment;
@@ -643,6 +692,11 @@ const upvoteComment = async (commentId, userId) => {
         // Re-throw AppError instances
         if (error instanceof AppError) {
             throw error;
+        }
+        
+        // Handle MongoDB duplicate key errors
+        if (error.code === 11000) {
+            throw new AppError('You have already voted on this comment', 409);
         }
         
         // Handle other errors

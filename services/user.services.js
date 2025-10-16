@@ -253,7 +253,9 @@ const updateUser = async (userId, updateData, requesterId) => {
         }
 
         // Check permissions (user can update own profile or admin can update any)
-        const isOwner = user._id.toString() === requesterId;
+        const isOwner = user._id.toString() === requesterId.toString();
+        // console.log("Requested Id: ", requesterId.toString());
+        // console.log("User Id: ", user._id.toString());
         const isAdmin = requester.user_type === 1;
 
         if (!isOwner && !isAdmin) {
@@ -274,9 +276,10 @@ const updateUser = async (userId, updateData, requesterId) => {
         }
 
         // Prevent non-admins from changing user_type
-        if (updateData.user_type !== undefined && !isAdmin) {
-            throw new AppError('Only admins can change user type', 403);
-        }
+        if(!isAdmin) updateData.user_type = user.user_type;
+        // if (updateData.user_type !== undefined && !isAdmin) {
+        //     throw new AppError('Only admins can change user type', 403);
+        // }
 
         // Check for unique constraints if updating email or username
         if (updateData.email || updateData.username) {
@@ -339,6 +342,7 @@ const updateUser = async (userId, updateData, requesterId) => {
         }
         
         // Handle other errors
+        console.error('Error updating user - Details:', error);
         throw new AppError('Error updating user', 500);
     }
 };

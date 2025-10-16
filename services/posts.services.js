@@ -3,6 +3,7 @@ const Post = require('../models/posts.model');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const { getCurrentTime } = require('../utils/CurrentTime');
+const { getCommentsByPostId } = require('./comments.services');
 
 /**
  * Create a new post
@@ -32,11 +33,6 @@ const createPost = async (postData, userId) => {
         // Validate content is an array
         if (!Array.isArray(content)) {
             throw new AppError('Content must be an array', 400);
-        }
-
-        // Validate content is not empty
-        if (content.length === 0) {
-            throw new AppError('Content cannot be empty', 400);
         }
 
         // Create post object
@@ -202,7 +198,21 @@ const getPostById = async (postId) => {
             throw new AppError('Post not found', 404);
         }
 
-        return post;
+        // Convert to plain object so we can add properties
+        const postObject = post.toObject();
+
+        // Add comment count and comments
+        try {
+            const commentsResult = await getCommentsByPostId(postId);
+            console.log(commentsResult);
+            postObject.comments = commentsResult?.comments || [];
+            postObject.comment_count = commentsResult?.comments ? commentsResult.comments.length : 0;
+        } catch (error) {
+            postObject.comments = [];
+            postObject.comment_count = 0;
+        }
+        
+        return postObject;
     } catch (error) {
         // Re-throw AppError instances
         if (error instanceof AppError) {
@@ -227,7 +237,8 @@ const getAllPosts = async (options = {}) => {
             sortBy = 'createdAt',
             sortOrder = 'desc',
             search = '',
-            userId = null
+            userId = null,
+            excludeUserId = null
         } = options;
 
         const skip = (page - 1) * limit;
@@ -249,6 +260,12 @@ const getAllPosts = async (options = {}) => {
                 throw new AppError('Invalid user ID format', 400);
             }
             query.user_id = userId;
+        } else if (excludeUserId) {
+            // Only exclude user if we're not filtering by a specific user
+            if (!mongoose.Types.ObjectId.isValid(excludeUserId)) {
+                throw new AppError('Invalid exclude user ID format', 400);
+            }
+            query.user_id = { $ne: excludeUserId };
         }
 
         // Build sort object
@@ -263,22 +280,31 @@ const getAllPosts = async (options = {}) => {
                 .limit(parseInt(limit)).lean(),
             Post.countDocuments(query)
         ]);
-
+        //get comment count 
+        for (let post of posts) {
+            try {
+                const commentsResult = await getCommentsByPostId(post._id);
+                post.comment_count = commentsResult?.comments ? commentsResult.comments.length : 0;
+            } catch (error) {
+                // If there's an error getting comments, default to 0
+                post.comment_count = 0;
+            }
+        }
          // Rename user_id → user
         const formattedPosts = posts.map(post => ({
             ...post,
-            user: post.user_id, // rename
+            // user: post.user_id, // rename
         }));
 
         return {
             post: formattedPosts,
-            pagination: {
-                currentPage: parseInt(page),
-                totalPages: Math.ceil(total / limit),
-                totalPosts: total,
-                hasNext: skip + posts.length < total,
-                hasPrev: page > 1
-            }
+            // pagination: {
+            //     currentPage: parseInt(page),
+            //     totalPages: Math.ceil(total / limit),
+            //     totalPosts: total,
+            //     hasNext: skip + posts.length < total,
+            //     hasPrev: page > 1
+            // }
         };
     } catch (error) {
         // Re-throw AppError instances
