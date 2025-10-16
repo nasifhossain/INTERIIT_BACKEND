@@ -284,7 +284,7 @@ const getAllPosts = async (options = {}) => {
         for (let post of posts) {
             try {
                 const commentsResult = await getCommentsByPostId(post._id);
-                post.comment_count = commentsResult?.comments ? commentsResult.comments.length : 0;
+                post.comment_count = commentsResult?.post ? commentsResult.post.comment_count : 0;
             } catch (error) {
                 // If there's an error getting comments, default to 0
                 post.comment_count = 0;

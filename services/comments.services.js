@@ -202,9 +202,11 @@ const getCommentsByPostId = async (postId, options = {}) => {
                 .populate('user', 'username email avatar user_type')
                 .sort(sort)
                 .lean();
-                for (const comment of allComments) {
-                    comment.stats = await getCommentVoteStats(comment._id);
-                }
+            for (const comment of allComments) {
+                comment.stats = await getCommentVoteStats(comment._id);
+            }
+
+            post.comment_count = allComments?.length || 0;
             // Build nested tree structure
             const nestedComments = buildCommentTree(allComments);
             
@@ -224,7 +226,8 @@ const getCommentsByPostId = async (postId, options = {}) => {
                 post: {
                     id: post._id,
                     title: post.title,
-                    user_id: post.user_id
+                    user_id: post.user_id,
+                    comment_count: post.comment_count
                 },
                 pagination: {
                     currentPage: parseInt(page),

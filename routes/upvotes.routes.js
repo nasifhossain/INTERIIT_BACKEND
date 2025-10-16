@@ -343,4 +343,45 @@ router.delete('/comment/:commentId/all', optionalAuth, async (req, res) => {
     }
 });
 
+/**
+ * GET /upvotes/:commentId/users?type=1
+ * Get users who voted on a comment with specific vote type
+ * @param commentId - ID of the comment
+ * @query type - Vote type (1 for upvotes, -1 for downvotes)
+ * Public endpoint (no auth required)
+ */
+router.get('/:commentId/users', async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const { type } = req.query;
+        
+        // Validate type parameter
+        if (!type) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vote type is required',
+                details: 'Please provide ?type=1 for upvotes or ?type=-1 for downvotes'
+            });
+        }
+        
+        const result = await upvotesService.getVotesUsers(commentId, type);
+        
+        res.status(200).json({
+            success: true,
+            message: 'Comment vote users retrieved successfully',
+            data: result
+        });
+    } catch (error) {
+        logger.error('Error getting vote users', error, {
+            commentId: req.params.commentId,
+            type: req.query.type
+        });
+
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message || 'Error retrieving vote users'
+        });
+    }
+});
+
 module.exports = router;

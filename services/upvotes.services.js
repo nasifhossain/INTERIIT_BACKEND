@@ -353,10 +353,73 @@ const removeAllVotesFromComment = async (commentId) => {
     }
 };
 
+/**
+ * @param {String} commentId
+ */
+
+const getVotesUsers = async (commentId, type) => {
+    try {
+        // Validate inputs
+        if (!mongoose.Types.ObjectId.isValid(commentId)) {
+            throw new AppError('Invalid comment ID format', 400);
+        }
+
+        type = parseInt(type);
+        if (![1, -1].includes(type)) {
+            throw new AppError('Vote type must be 1 (upvote) or -1 (downvote)', 400);
+        }
+
+        // Check if comment exists
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            throw new AppError('Comment not found', 404);
+        }
+
+        // Find votes with specific type for this comment
+        const votes = await Upvote.find({ 
+            comment: commentId, 
+            type: type 
+        })
+            .populate('user', 'username email avatar user_type')
+            .sort({ created_at: -1 }) // Most recent votes first
+            .lean();
+
+        const users = votes.map(vote => ({
+            ...vote.user,
+            votedAt: vote.created_at
+        }));
+
+        logger.info('Comment vote users retrieved', {
+            commentId,
+            voteType: type,
+            userCount: users.length
+        });
+
+        return {
+            commentId,
+            voteType: type,
+            voteTypeLabel: type === 1 ? 'upvotes' : 'downvotes',
+            totalUsers: users.length,
+            users
+        };
+    } catch (error) {
+        logger.error('Error getting comment votes users', error, { commentId, type });
+
+        // Re-throw AppError instances
+        if (error instanceof AppError) {
+            throw error;
+        }
+        
+        // Handle other errors
+        throw new AppError('Error retrieving vote users', 500);
+    }
+}
+
 module.exports = {
     voteComment,
     getUserVote,
     getCommentVoteStats,
     getUserVotes,
-    removeAllVotesFromComment
+    removeAllVotesFromComment,
+    getVotesUsers
 };
