@@ -183,8 +183,7 @@ router.put('/:id',
 router.delete('/:id', authenticateToken, async (req, res, next) => {
     try {
         const { id } = req.params;
-
-        const result = await deleteComment(id, req.user.id);
+        const result = await deleteComment(id, req.user.id, req.user.user_type === 1);
 
         logger.info('Comment deleted via API', {
             commentId: id,

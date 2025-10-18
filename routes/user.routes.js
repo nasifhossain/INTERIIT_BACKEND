@@ -184,7 +184,7 @@ router.post('/admin', authenticateToken, requireAdmin, validateRequiredFields(['
             password: req.body.password,
             name: req.body.name, // Optional, will default to username if not provided
             avatar: req.body.avatar,
-            user_type: 1
+            user_type: req.body.user_type || 1
         };
 
             const newUser = await createUser(userData);

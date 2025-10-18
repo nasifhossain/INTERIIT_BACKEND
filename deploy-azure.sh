@@ -15,9 +15,10 @@ NC='\033[0m' # No Color
 # Configuration
 RESOURCE_GROUP="interiit-rg"
 APP_NAME="interiit-backend"
-LOCATION="eastus"
+# Azure for Students allowed regions: southeastasia, eastasia, centralindia, malaysiawest, austriaeast
+LOCATION="southeastasia"  # Southeast Asia - good for most locations
 PLAN_NAME="interiit-plan"
-SKU="B1"  # Basic tier - change to F1 for free tier
+SKU="F1"  # Free tier - change to B1 for production ($13/month)
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   InterIIT Backend - Azure Deploy     ║${NC}"

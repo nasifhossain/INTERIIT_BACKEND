@@ -26,6 +26,19 @@ const getCommentDepth = async (commentId) => {
 };
 
 /**
+ * Helper function to process comments and handle deleted ones
+ */
+const processCommentContent = (comment) => {
+    if (comment.is_deleted) {
+        return {
+            ...comment,
+            content: "Comment Deleted"
+        };
+    }
+    return comment;
+};
+
+/**
  * Helper function to build nested comment tree structure
  * @param {Array} comments - Flat array of comments
  * @param {String} parentId - Parent comment ID (null for top-level)
@@ -40,7 +53,7 @@ const buildCommentTree = (comments, parentId = null) => {
     });
 
     return children.map(comment => ({
-        ...comment,
+        ...processCommentContent(comment),
         replies: buildCommentTree(comments, comment._id),
         replyCount: comments.filter(c => 
             c.parent_comment && c.parent_comment.toString() === comment._id.toString()
@@ -202,12 +215,14 @@ const getCommentsByPostId = async (postId, options = {}) => {
                 .populate('user', 'username name email avatar user_type')
                 .sort(sort)
                 .lean();
+            
+            // Process comments and add vote stats
             for (const comment of allComments) {
                 comment.stats = await getCommentVoteStats(comment._id);
             }
 
             post.comment_count = allComments?.length || 0;
-            // Build nested tree structure
+            // Build nested tree structure (buildCommentTree now handles deleted comments)
             const nestedComments = buildCommentTree(allComments);
             
             // Apply pagination to top-level comments only
@@ -256,7 +271,7 @@ const getCommentsByPostId = async (postId, options = {}) => {
             })
         ]);
 
-        let comments = topLevelComments;
+        let comments = topLevelComments.map(processCommentContent);
 
         // If includeReplies is true, fetch direct replies for each top-level comment
         if (includeReplies && topLevelComments.length > 0) {
@@ -270,8 +285,11 @@ const getCommentsByPostId = async (postId, options = {}) => {
                 .sort({ commented_at: 1 }) // Replies sorted by oldest first
                 .lean();
 
+            // Process replies for deleted content
+            const processedReplies = replies.map(processCommentContent);
+
             // Group replies by parent comment
-            const repliesMap = replies.reduce((acc, reply) => {
+            const repliesMap = processedReplies.reduce((acc, reply) => {
                 const parentId = reply.parent_comment.toString();
                 if (!acc[parentId]) {
                     acc[parentId] = [];
@@ -281,7 +299,7 @@ const getCommentsByPostId = async (postId, options = {}) => {
             }, {});
 
             // Add replies to their parent comments
-            comments = topLevelComments.map(comment => ({
+            comments = comments.map(comment => ({
                 ...comment,
                 replies: repliesMap[comment._id.toString()] || [],
                 replyCount: (repliesMap[comment._id.toString()] || []).length
@@ -397,15 +415,19 @@ const getCommentById = async (commentId) => {
             .sort({ commented_at: 1 })
             .lean();
 
+        // Process replies for deleted content
+        const processedReplies = replies.map(processCommentContent);
+
         // Build nested structure for replies
-        const nestedReplies = buildCommentTree(replies);
+        const nestedReplies = buildCommentTree(processedReplies);
 
         // Calculate comment depth
         const depth = await getCommentDepth(commentId);
 
-        // Create response object
+        // Create response object with processed content
+        const processedComment = processCommentContent(comment.toObject());
         const commentWithReplies = {
-            ...comment.toObject(),
+            ...processedComment,
             replies: nestedReplies,
             replyCount: replies.length,
             depth: depth
@@ -519,112 +541,112 @@ const updateComment = async (commentId, updateData, userId) => {
     }
 };
 
-/**
- * Delete a comment
- * @param {String} commentId - ID of the comment to delete
- * @param {String} userId - ID of the user deleting the comment
- * @returns {Object} Success message
- */
-const deleteComment = async (commentId, userId) => {
-    try {
-        // Validate comment ID
-        if (!mongoose.Types.ObjectId.isValid(commentId)) {
-            throw new AppError('Invalid comment ID format', 400);
-        }
+// /**
+//  * Delete a comment
+//  * @param {String} commentId - ID of the comment to delete
+//  * @param {String} userId - ID of the user deleting the comment
+//  * @returns {Object} Success message
+//  */
+// const deleteComment = async (commentId, userId) => {
+//     try {
+//         // Validate comment ID
+//         if (!mongoose.Types.ObjectId.isValid(commentId)) {
+//             throw new AppError('Invalid comment ID format', 400);
+//         }
 
-        // Validate user ID
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            throw new AppError('Invalid user ID format', 400);
-        }
+//         // Validate user ID
+//         if (!mongoose.Types.ObjectId.isValid(userId)) {
+//             throw new AppError('Invalid user ID format', 400);
+//         }
 
-        // Find the comment
-        const comment = await Comment.findById(commentId);
-        if (!comment) {
-            throw new AppError('Comment not found', 404);
-        }
+//         // Find the comment
+//         const comment = await Comment.findById(commentId);
+//         if (!comment) {
+//             throw new AppError('Comment not found', 404);
+//         }
 
-        // Find the user
-        const user = await User.findById(userId);
-        if (!user) {
-            throw new AppError('User not found', 404);
-        }
+//         // Find the user
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             throw new AppError('User not found', 404);
+//         }
 
-        // Check if user owns the comment or is admin
-        const isOwner = comment.user.toString() === userId;
-        const isAdmin = user.user_type === 1;
+//         // Check if user owns the comment or is admin
+//         const isOwner = comment.user.toString() === userId;
+//         const isAdmin = user.user_type === 1;
 
-        if (!isOwner && !isAdmin) {
-            throw new AppError('You can only delete your own comments', 403);
-        }
+//         if (!isOwner && !isAdmin) {
+//             throw new AppError('You can only delete your own comments', 403);
+//         }
 
-        // Check if this comment has replies (recursively count all descendants)
-        const getAllDescendants = async (commentId) => {
-            const directReplies = await Comment.find({ parent_comment: commentId });
-            let allDescendants = [...directReplies];
+//         // Check if this comment has replies (recursively count all descendants)
+//         const getAllDescendants = async (commentId) => {
+//             const directReplies = await Comment.find({ parent_comment: commentId });
+//             let allDescendants = [...directReplies];
             
-            for (const reply of directReplies) {
-                const descendants = await getAllDescendants(reply._id);
-                allDescendants = allDescendants.concat(descendants);
-            }
+//             for (const reply of directReplies) {
+//                 const descendants = await getAllDescendants(reply._id);
+//                 allDescendants = allDescendants.concat(descendants);
+//             }
             
-            return allDescendants;
-        };
+//             return allDescendants;
+//         };
 
-        const descendants = await getAllDescendants(commentId);
-        const totalDescendants = descendants.length;
+//         const descendants = await getAllDescendants(commentId);
+//         const totalDescendants = descendants.length;
         
-        // Delete all descendants first (replies, sub-replies, etc.)
-        if (totalDescendants > 0) {
-            const descendantIds = descendants.map(d => d._id);
+//         // Delete all descendants first (replies, sub-replies, etc.)
+//         if (totalDescendants > 0) {
+//             const descendantIds = descendants.map(d => d._id);
             
-            // Delete upvotes for all descendant comments
-            await Upvote.deleteMany({ comment: { $in: descendantIds } });
+//             // Delete upvotes for all descendant comments
+//             await Upvote.deleteMany({ comment: { $in: descendantIds } });
             
-            await Comment.deleteMany({ _id: { $in: descendantIds } });
-            logger.info(`Deleted ${totalDescendants} nested replies for comment ${commentId}`);
-        }
+//             await Comment.deleteMany({ _id: { $in: descendantIds } });
+//             logger.info(`Deleted ${totalDescendants} nested replies for comment ${commentId}`);
+//         }
 
-        // Delete upvotes for the main comment
-        await Upvote.deleteMany({ comment: commentId });
+//         // Delete upvotes for the main comment
+//         await Upvote.deleteMany({ comment: commentId });
 
-        // Delete the comment
-        const deletedComment = await Comment.findByIdAndDelete(commentId);
-        if (!deletedComment) {
-            throw new AppError('Failed to delete comment', 500);
-        }
+//         // Delete the comment
+//         const deletedComment = await Comment.findByIdAndDelete(commentId);
+//         if (!deletedComment) {
+//             throw new AppError('Failed to delete comment', 500);
+//         }
 
-        logger.info('Comment deleted successfully', {
-            commentId,
-            userId,
-            postId: comment.post,
-            isAdmin,
-            deletedNestedReplies: totalDescendants
-        });
+//         logger.info('Comment deleted successfully', {
+//             commentId,
+//             userId,
+//             postId: comment.post,
+//             isAdmin,
+//             deletedNestedReplies: totalDescendants
+//         });
 
-        return {
-            success: true,
-            message: 'Comment deleted successfully',
-            deletedComment: {
-                id: commentId,
-                post: comment.post,
-                deletedNestedReplies: totalDescendants
-            }
-        };
-    } catch (error) {
-        logger.error('Error deleting comment', error, {
-            commentId,
-            userId
-        });
+//         return {
+//             success: true,
+//             message: 'Comment deleted successfully',
+//             deletedComment: {
+//                 id: commentId,
+//                 post: comment.post,
+//                 deletedNestedReplies: totalDescendants
+//             }
+//         };
+//     } catch (error) {
+//         logger.error('Error deleting comment', error, {
+//             commentId,
+//             userId
+//         });
 
-        // Re-throw AppError instances
-        if (error instanceof AppError) {
-            throw error;
-        }
+//         // Re-throw AppError instances
+//         if (error instanceof AppError) {
+//             throw error;
+//         }
         
-        // Handle other errors
-        throw new AppError('Error deleting comment', 500);
-    }
-};
+//         // Handle other errors
+//         throw new AppError('Error deleting comment', 500);
+//     }
+// };
 
 /**
  * Upvote a comment (deprecated - use upvotes.services.js for full voting functionality)
@@ -776,6 +798,9 @@ const getCommentsByUserId = async (userId, options = {}) => {
             Comment.countDocuments({ user: userId })
         ]);
 
+        // Process comments for deleted content
+        const processedComments = comments.map(processCommentContent);
+
         logger.info('User comments retrieved successfully', {
             userId,
             commentsCount: comments.length,
@@ -783,7 +808,7 @@ const getCommentsByUserId = async (userId, options = {}) => {
         });
 
         return {
-            comments,
+            comments: processedComments,
             user: {
                 id: user._id,
                 username: user.username,
@@ -951,7 +976,7 @@ const getRepliesByCommentId = async (commentId, options = {}) => {
                 .sort(sort)
                 .lean();
 
-            // Build nested structure for replies
+            // Build nested structure for replies (buildCommentTree handles deleted content)
             const nestedReplies = buildCommentTree(allReplies);
             
             // Apply pagination
@@ -988,6 +1013,9 @@ const getRepliesByCommentId = async (commentId, options = {}) => {
             Comment.countDocuments({ parent_comment: commentId })
         ]);
 
+        // Process replies for deleted content
+        const processedReplies = replies.map(processCommentContent);
+
         logger.info('Replies retrieved successfully', {
             parentCommentId: commentId,
             repliesCount: replies.length,
@@ -995,7 +1023,7 @@ const getRepliesByCommentId = async (commentId, options = {}) => {
         });
 
         return {
-            replies,
+            replies: processedReplies,
             parentComment: {
                 id: parentComment._id,
                 content: parentComment.content,
@@ -1116,6 +1144,34 @@ const getCommentThread = async (commentId) => {
         // Handle other errors
         throw new AppError('Error retrieving comment thread', 500);
     }
+
+};
+
+/**
+ * @params {userid}
+ */
+
+const deleteComment = async (commentId, userId, isAdmin = false) => {
+    const comment = await Comment.findById(commentId);
+    console.log("Admin Status:", isAdmin);
+    logger.info("Delete Comment Called", { commentId, userId, isAdmin });
+    if (!comment) {
+        throw new Error('Comment not found');
+    }
+    
+    if (comment.is_deleted) {
+        throw new Error('Comment already deleted');
+    }
+    
+    // Check authorization: user can delete own comment or admin can delete any
+    if (!isAdmin && comment.user.toString() !== userId.toString()) {
+        throw new Error('Unauthorized to delete this comment12');
+    }
+    
+    comment.is_deleted = true;
+    await comment.save();
+    
+    return comment;
 };
 
 module.exports = {
