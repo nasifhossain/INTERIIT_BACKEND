@@ -2,9 +2,9 @@
 
 A robust Node.js backend API for a social forum platform featuring posts, comments, user management, and voting systems. Built with Express.js, MongoDB, and Docker for scalable deployment.
 ##env
-MONGODB_URI="mongodb+srv://nasifhossain040:ilovepdf@interiit2025.xndujfx.mongodb.net/?retryWrites=true&w=majority&appName=INTERIIT2025"
+MONGODB_URI=""
 PORT = 8000
-JWT_SECRET = "atiggaAtigga"
+JWT_SECRET = ""
 JWT_EXPIRES_IN = "7d"
 
 ## 🚀 Features
